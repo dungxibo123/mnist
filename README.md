@@ -1,3 +1,4 @@
+```
 usage: main.py [-h] [-b BATCH_SIZE] [-e EPOCH] [--weight-decay WEIGHT_DECAY]
                [--optimizer {sgd,adam,adamw}] [-lr LEARNING_RATE]
                [-vb VAL_BATCH_SIZE] [--use-gpu] [--test-size TEST_SIZE]
@@ -31,3 +32,4 @@ options:
   --checkpoint-path CHECKPOINT_PATH
   --data {MNIST,FMNIST}
   --data-path DATA_PATH
+```
