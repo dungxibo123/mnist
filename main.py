@@ -12,6 +12,7 @@ from tqdm import tqdm
 import mlflow
 import logging
 import warnings
+import copy
 import datetime # using ds_start macro in Airflow
 #logger = logging.Logger()
 
@@ -180,6 +181,7 @@ def main():
     mlflow.start_run(
                         experiment_id=experiment_id
                     )
+    run_id = mlflow.active_run().info.run_id
     mlflow.log_params(vars(opt))
     for i in range(1, opt.epoch+1): 
 
@@ -207,14 +209,24 @@ def main():
                 'losses': losses,
             }, opt.checkpoint_path + "/model.pt")
         if val_acc > best_val_acc:
-            best_model = model
+            best_model = copy.deepcopy(model)
             best_val_acc = val_acc
             best_epoch = i
         #tp.set_postfix(loss=epoch_loss, val_loss=val_loss, val_acc=val_acc)
 
+    # Here we use val data as test data, in real-life maybe we need to use
+    # common test data
+    mlflow.log_metrics(
+        {
+            "best_val_acc": best_val_acc
+        }
+    )
+
     mlflow.end_run()
 
-    print("Running success! Evaluate here")
-
+    # Now get the 
+    result = mlflow.register_model(
+     f"runs:/{run_id}/final_model", "final_model"
+    )
 if __name__=="__main__":
     main()
