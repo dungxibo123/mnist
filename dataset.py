@@ -2,7 +2,10 @@
 
 import torch
 import torchvision
+import random
 from sklearn.model_selection import train_test_split
+import copy
+import numpy as np
 
 def get_dataset(opt):
     if opt.data == "MNIST":
@@ -18,7 +21,19 @@ def get_dataset(opt):
                                  (0.1307,), (0.3081,))
                              ]))
 
+    if opt.unbalanced:
+        num_classes = 10
+        classe_labels = range(num_classes)
+        sample_probs = torch.rand(num_classes)
+       
+        idx_to_del = [i for i, label in enumerate(dataset.train_labels) 
+                      if random.random() > sample_probs[label]]
+        imbalanced_train_dataset = copy.deepcopy(dataset)
+        
+        imbalanced_train_dataset.train_labels = np.delete(dataset.train_labels, idx_to_del, axis=0)
+        imbalanced_train_dataset.train_data = np.delete(dataset.train_data, idx_to_del, axis=0) 
     
+        return imbalanced_train_dataset
     return dataset
 
 def get_train_val_loader(opt):

@@ -9,9 +9,13 @@ from dataset import get_train_val_loader
 from model import BasicConvolutionNeuralNetwork
 
 from tqdm import tqdm
+import mlflow
 import logging
 import warnings
+import datetime # using ds_start macro in Airflow
 #logger = logging.Logger()
+
+
 
 def create_model(opt):
     model = BasicConvolutionNeuralNetwork(opt)
@@ -54,6 +58,8 @@ def get_opt():
     args.add_argument("--model-path", type=str, default="./model")
     args.add_argument("--data", choices=["MNIST","FMNIST"], required=True)
     args.add_argument("--data-path", type=str, required=True)
+
+    args.add_argument("--unbalanced", action='store_true')
 
 
     # Network Argument
@@ -117,6 +123,9 @@ def train_one_iter(model, optim, train_load, val_loader, opt, epoch):
 
     return model, optim, losses, val_loss, val_acc
 
+
+
+
 def main():
     opt = get_opt()
     train_loader, val_loader = get_train_val_loader(opt)
@@ -127,6 +136,24 @@ def main():
 
 #    model.get_size_after_flatten()
 #    trial_data = torch.rand((32,1,28,28))
+
+
+    ### MLFLOW experiment find
+    
+    exps = mlflow.search_experiments(view_type=3, filter_string=f"name ILIKE \'{os.environ.get('MLFLOW_EXPERIMENT_NAME')}\'")
+    if len(exps) < 1:
+        print("Experiment could not be found. Init new one")
+        experiment_id = mlflow.create_experiment(
+            name=os.environ.get("MLFLOW_EXPERIMENT_NAME"),
+            
+            tags={"version": "v1" , "priority": "P1"}
+        )
+        print(f"Experiment with id {os.environ.get('MLFLOW_EXPERIMENT_NAME')} had been initialized")
+
+    else:
+        print(exps)
+        experiment_id = exps[0].experiment_id
+
     
 #    print(model(trial_data))
     optim = None
@@ -141,12 +168,19 @@ def main():
     #for i in tqdm.tqdm(range(opt.epoch)):
 
     #with tqdm(range(1, opt.epoch + 1), position=0, leave=True) as tp:
+
     best_model = None
     best_val_acc = 0
     best_epoch = -1
     losses = []
     val_accuracies = []
     val_losses = []
+
+
+    mlflow.start_run(
+                        experiment_id=experiment_id
+                    )
+    mlflow.log_params(vars(opt))
     for i in range(1, opt.epoch+1): 
 
         
@@ -154,6 +188,16 @@ def main():
         losses.append(epoch_loss)
         val_losses.append(val_loss)
         val_accuracies.append(val_acc)
+
+        mlflow.log_metrics(
+            {
+                "train_loss": epoch_loss,
+                "val_loss": val_loss,
+                "val_acc": val_acc
+
+            },
+            step=i
+        )
         if i % 5 == 0 and opt.checkpoint:
             torch.save({
                 'opt': opt,
@@ -168,10 +212,9 @@ def main():
             best_epoch = i
         #tp.set_postfix(loss=epoch_loss, val_loss=val_loss, val_acc=val_acc)
 
-    torch.save({
-        'opt': opt,
-        'model_state_dict':model.state_dict(),
-    }, opt.model_path + "/final_model.pt")    
+    mlflow.end_run()
+
+    print("Running success! Evaluate here")
 
 if __name__=="__main__":
     main()
