@@ -16,7 +16,7 @@ import copy
 import datetime # using ds_start macro in Airflow
 #logger = logging.Logger()
 
-
+import mlflow.pytorch
 
 def create_model(opt):
     model = BasicConvolutionNeuralNetwork(opt)
@@ -178,6 +178,7 @@ def main():
     val_losses = []
 
 
+    mlflow.pytorch.autolog()
     mlflow.start_run(
                         experiment_id=experiment_id
                     )
@@ -222,8 +223,11 @@ def main():
         }
     )
 
+
     mlflow.end_run()
 
+    
+    mlflow.pytorch.log_model(best_model, "final_model")
     # Now get the 
     result = mlflow.register_model(
      f"runs:/{run_id}/final_model", "final_model"
